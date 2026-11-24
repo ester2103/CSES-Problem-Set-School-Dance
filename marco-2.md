@@ -4,57 +4,92 @@
 
 ## 1. Algoritmo escolhido
 
-**Ford-Fulkerson** (busca de caminhos aumentantes por DFS), na versão especializada para emparelhamento bipartido conhecida como **algoritmo de Kuhn**.
+**Ford-Fulkerson**, com busca de caminhos aumentantes por DFS, aplicado à rede de fluxo construída no Marco 1.
 
 ## 2. Justificativa
 
-- **Kruskal/Prim** resolvem árvore geradora mínima e **Dijkstra** resolve caminho mínimo. Nenhum deles maximiza uma quantidade sujeita a capacidades, portanto não se aplicam.
-- No modelo de fluxo do Marco 1, o fluxo máximo é igual ao emparelhamento máximo. Como as capacidades são 1, o fluxo é inteiro: cada aresta `a → b` com fluxo 1 é uma dupla.
-- O fluxo máximo é no máximo `F = min(n, m) ≤ 500`. O Ford-Fulkerson faz no máximo `F` aumentos, e cada aumento custa uma busca em `O(V + E)`. Esse limite é pequeno para as restrições dadas.
-- **Edmonds-Karp** (BFS) também serviria, mas não é necessário, pois o limite `F · E` já cabe no tempo.
-- O algoritmo de Kuhn é o mesmo Ford-Fulkerson sem construir `s` e `t` explicitamente. Para cada menino, busca-se um caminho aumentante que alterna arestas fora e dentro do emparelhamento atual.
+- **Kruskal/Prim** resolvem árvore geradora mínima: ligam todos os vértices com custo mínimo. Aqui não há custos nem necessidade de conectar todos os vértices.
+- **Dijkstra** resolve caminho mínimo entre vértices. Aqui não buscamos um caminho curto, e sim o máximo de duplas.
+- O problema pede o **máximo** de algo sujeito a **capacidades** (cada pessoa só pode ser usada uma vez). Isso é **fluxo máximo**, e o Ford-Fulkerson é o algoritmo clássico para ele.
+- Como todas as capacidades são inteiras (iguais a 1), o Ford-Fulkerson sempre termina e produz um fluxo inteiro. Cada aresta `menino → menina` com fluxo 1 é uma dupla.
+- **Edmonds-Karp** (Ford-Fulkerson com BFS) também serviria, mas o limite do Ford-Fulkerson com DFS, `O(F · E)`, já é pequeno para estas restrições.
 
-### Funcionamento resumido
+## 3. Rede de fluxo
 
-1. Começar com emparelhamento vazio.
-2. Para cada menino, tentar encontrar uma menina livre entre as que aceitam dançar com ele.
-3. Se a menina já estiver emparelhada, tentar realocar o menino que está com ela para outra menina (recursivamente), liberando-a.
-4. Se a busca tiver sucesso, o emparelhamento cresce em 1. Caso contrário, o menino fica sem par.
-5. Ao final, as duplas são as arestas do emparelhamento.
+| Elemento | Definição |
+|---|---|
+| Vértices | `s` (origem), `n` meninos, `m` meninas, `t` (destino): `V = n + m + 2` |
+| Arestas `s → a` | uma para cada menino `a`, capacidade 1 |
+| Arestas `a → b` | uma para cada par potencial `(a, b)`, capacidade 1 |
+| Arestas `b → t` | uma para cada menina `b`, capacidade 1 |
+| Número de arestas | `E = n + k + m` |
+
+### Funcionamento
+
+1. Começar com fluxo 0 em todas as arestas.
+2. Construir a **rede residual**: cada aresta com capacidade restante gera uma aresta direta, e cada aresta com fluxo gera uma aresta reversa que permite desfazer esse fluxo.
+3. Fazer uma DFS de `s` até `t` na rede residual. Se encontrar um caminho, enviar 1 unidade de fluxo por ele (o gargalo é sempre 1).
+4. Repetir o passo 3 até não existir mais caminho de `s` até `t`.
+5. O valor do fluxo é `r`. As duplas são as arestas `menino → menina` com fluxo 1.
 
 ### Corretude
 
-Pelo **teorema de Berge**, um emparelhamento é máximo se, e somente se, não existe caminho aumentante. O algoritmo tenta aumentar o emparelhamento para cada menino. Se não existe caminho aumentante a partir dele naquele momento, também não existirá depois, então ele pode ser descartado. Ao final não restam caminhos aumentantes e o emparelhamento é máximo.
+Pelo teorema do **fluxo máximo / corte mínimo**, o fluxo é máximo quando não há mais caminho aumentante de `s` até `t` na rede residual. Nesse ponto, o fluxo é igual à capacidade de um corte mínimo. Como o fluxo inteiro corresponde a um emparelhamento, o emparelhamento obtido é máximo.
 
-## 3. Complexidade de pior caso
+## 4. Complexidade de pior caso
 
-Parâmetros: `V = n + m ≤ 1000`, `E = k ≤ 1000`, `F ≤ min(n, m) ≤ 500`.
+Parâmetros: `V = n + m + 2 ≤ 1002`, `E = n + k + m ≤ 2000`, `F ≤ min(n, m) ≤ 500`.
 
-| Recurso | Complexidade | Estimativa |
-|---|---|---|
-| **Tempo** | `O(F · (V + E))`, que na forma de Kuhn equivale a `O(n · k)` | ≈ 500 · 2000 = 10⁶ operações, bem abaixo de 1 s |
-| **Espaço** | `O(n + m + k)` | Lista de adjacência e vetores de emparelhamento e de visitados, muito abaixo de 512 MB |
+### Tempo: `O(F · (V + E))`
 
-## 4. Representação da instância pequena
+- **No máximo `F` aumentos:** cada caminho aumentante soma exatamente 1 ao fluxo, porque as capacidades são 1.
+- **`F ≤ min(n, m)`:** cada dupla usa 1 menino e 1 menina, então não há mais duplas do que meninos nem do que meninas.
+- **Cada DFS custa `O(V + E)`:** ela visita cada vértice uma única vez (vértices já visitados são marcados) e percorre cada aresta uma única vez.
+- **Estimativa:** `500 · (1002 + 2000) ≈ 1,5 · 10⁶` operações, muito abaixo do limite de 1 s.
 
-Entrada: `n = 3`, `m = 2`, `k = 4`, com arestas `1-1`, `1-2`, `2-1`, `3-1`.
+### Espaço: `O(V + E)`, ou seja, `O(n + m + k)`
 
-Lista de adjacência (meninos → meninas):
+- Lista de adjacência com as arestas da rede e suas arestas reversas: `2 · E` entradas.
+- Vetor de capacidades residuais: `2 · E` valores.
+- Vetor de visitados da DFS: `V` posições.
+- Pilha de recursão da DFS: no máximo `V` níveis.
 
-| Menino | Meninas |
+Tudo isso soma alguns milhares de inteiros, muito abaixo do limite de 512 MB.
+
+## 5. Representação da instância pequena
+
+Entrada: `n = 3`, `m = 2`, `k = 4`, com pares `1-1`, `1-2`, `2-1`, `3-1`.
+
+Arestas da rede (todas com capacidade 1):
+
+| De | Para |
 |---|---|
-| 1 | 1, 2 |
-| 2 | 1 |
-| 3 | 1 |
+| `s` | M1, M2, M3 |
+| M1 | G1, G2 |
+| M2 | G1 |
+| M3 | G1 |
+| G1, G2 | `t` |
 
-## 5. Validação da entrada e da saída esperada
+## 6. Validação: passo a passo
 
-Execução passo a passo:
+![Passo a passo do Ford-Fulkerson](passo-a-passo-ford-fulkerson.png)
 
-1. **Menino 1:** tenta a menina 1, que está livre. Emparelha `1-1`.
-2. **Menino 2:** só aceita a menina 1, que está com o menino 1. Tenta realocar o menino 1 para a menina 2, que está livre. Resultado: `1-2` e `2-1`.
-3. **Menino 3:** só aceita a menina 1, que está com o menino 2. O menino 2 não tem alternativa, então não há caminho aumentante. O menino 3 fica sem par.
+| Iteração | Caminho aumentante encontrado | Fluxo |
+|---|---|---|
+| 1 | `s → M1 → G1 → t` | 1 |
+| 2 | `s → M2 → G1 → M1 → G2 → t` (usa a aresta reversa `G1 → M1`) | 2 |
+| 3 | Nenhum caminho de `s` até `t` | fim |
 
-**Resultado:** 2 duplas (`1-2` e `2-1`). O valor `r = 2` coincide com a saída esperada. A lista de duplas difere da do enunciado (`1-2`, `3-1`), mas é igualmente válida, pois qualquer solução ótima é aceita.
+**Iteração 2:** o menino 2 só aceita a menina 1, que já está com o menino 1. O caminho passa pela aresta reversa `G1 → M1`, que desfaz a dupla `M1-G1`, e leva o menino 1 para a menina 2.
 
-O valor 2 é de fato o máximo: há apenas 2 meninas (`m = 2`), então não é possível formar mais de 2 duplas.
+**Iteração 3:** os vértices alcançáveis a partir de `s` na rede residual são `s`, M2, M3 e G1. O corte formado pelas arestas `s → M1` e `G1 → t` tem capacidade 2, igual ao fluxo. Logo, o fluxo 2 é máximo.
+
+**Saída obtida:** arestas `menino → menina` com fluxo 1 são `M1 → G2` e `M2 → G1`.
+
+```
+2
+1 2
+2 1
+```
+
+O valor `r = 2` coincide com o exemplo do enunciado. A lista de duplas é diferente (`1 2` e `3 1` no enunciado), mas também é válida, pois qualquer solução ótima é aceita. O valor 2 é o máximo possível, pois há apenas 2 meninas.
