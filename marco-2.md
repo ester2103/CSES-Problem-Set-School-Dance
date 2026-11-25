@@ -72,7 +72,6 @@ Arestas da rede (todas com capacidade 1):
 
 ## 6. Validação: passo a passo
 
-![Passo a passo do Ford-Fulkerson](passo-a-passo-ford-fulkerson.png)
 
 | Iteração | Caminho aumentante encontrado | Fluxo |
 |---|---|---|
